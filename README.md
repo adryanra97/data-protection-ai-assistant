@@ -74,20 +74,35 @@ Tavily API: External fallback search engine
 # 📁 Project Structure
 
 ├── app/
+
 │   ├── config.py          # Loads .env and settings via Pydantic
+
 │   ├── core.py            # Elasticsearch, embeddings, store init
+
 │   ├── ingest.py          # Document splitting and loading
+
 │   ├── tools.py           # Multi-agent tools and Tavily API
+
 │   ├── memory.py          # Conversational memory manager
+
 │   ├── agent.py           # Tool router and response generator
+
 │   └── main.py            # FastAPI app + entrypoint
+
 ├── ui/
+
 │   └── interface.py       # Gradio-powered web interface
+
 ├── data/                  # Local folder for CSV documents (ignored)
+
 ├── .env                   # API keys and config (ignored)
+
 ├── requirements.txt       # All dependencies
+
 ├── Dockerfile             # Containerized deployment for API
+
 ├── docker-compose.yml     # Multi-container deployment (API + UI)
+
 └── README.md
 
 Note for Contributors:
