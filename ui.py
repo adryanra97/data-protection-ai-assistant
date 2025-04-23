@@ -1,6 +1,5 @@
 import gradio as gr
 import requests
-import os
 
 API_URL_ASK = "http://localhost:8000/ask"
 API_URL_RESET = "http://localhost:8000/reset"
@@ -25,14 +24,13 @@ Ditenagai oleh <strong>Multi-Agent LLM Technology</strong>, OpenAI, Elasticsearc
 </p>
 """
 
-state = gr.State({"context": None})
-
 def chat_with_bot(message, history, context):
     try:
         payload = {"query": message}
         if context:
             payload["context"] = context
         response = requests.post(API_URL_ASK, json=payload)
+        response.raise_for_status()
         answer = response.json().get("answer", "Maaf, tidak ada jawaban ditemukan.")
     except Exception as e:
         answer = f"Error: {str(e)}"
@@ -60,6 +58,7 @@ def upload_file(file):
         return f"Error saat upload: {str(e)}", None
 
 with gr.Blocks(css="#chatbot-area .message { max-width: 80%; }") as demo:
+    state = gr.State({"context": None})
     gr.Markdown(DESCRIPTION, unsafe_allow_html=True)
 
     with gr.Box(elem_id="chatbot-area"):
@@ -72,11 +71,12 @@ with gr.Blocks(css="#chatbot-area .message { max-width: 80%; }") as demo:
     with gr.Row():
         upload = gr.File(label="Upload Dokumen", file_types=[".txt", ".csv"])
         status = gr.Textbox(label="Status Upload", interactive=False)
-    
+
     msg.submit(chat_with_bot, [msg, chatbot, state], [msg, chatbot, state])
     clear_btn.click(fn=reset_memory, inputs=[], outputs=[chatbot, state])
     upload.change(fn=upload_file, inputs=upload, outputs=[status, state])
 
     gr.Markdown("<center><small>Dibangun dengan LangChain, OpenAI, Elasticsearch, Tavily</small></center>", unsafe_allow_html=True)
 
-demo.launch()
+if __name__ == "__main__":
+    demo.launch()
