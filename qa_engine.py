@@ -85,3 +85,6 @@ class QAEngine:
         self.memory.chat_memory.add_user_message(prompt)
         self.memory.chat_memory.add_ai_message(resp.content)
         return resp.content
+
+    def reset_memory(self):
+        self.memory.chat_memory.messages.clear()
