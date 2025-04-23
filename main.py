@@ -4,7 +4,7 @@ from ingest import ingest_all
 from tools import get_tools
 from qa_engine import QAEngine
 from fastapi.responses import JSONResponse
-from ingest import split_doc
+from utils import split_doc
 
 app = FastAPI()
 
