@@ -20,3 +20,7 @@ qa = QAEngine(tools)
 @app.post("/ask")
 def ask_question(q: str = Body(..., embed=True)):
     return {"answer": qa.answer(q)}
+
+@app.get("/openapi.json")
+def custom_openapi():
+    return get_openapi(title="Legal QA", version="1.0.0", routes=app.routes)
