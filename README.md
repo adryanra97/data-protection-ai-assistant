@@ -18,23 +18,33 @@ Web UI for chat, document upload, and more
 
 Each stage of the chatbot leverages a different specialized agent:
 
-### 🔎 Query Router AgentDecides which tools are most relevant for the query (e.g., ['gdpr', 'pdp']).
+### 🔎 Query Router Agent
+
+Decides which tools are most relevant for the query (e.g., ['gdpr', 'pdp']).
 
 Role: Smart selector based on user intent.
 
-### 📄 Retriever Agents (GDPR, PDP, Company)Each document group has a retrieval agent backed by Elasticsearch and LangChain.
+### 📄 Retriever Agents (GDPR, PDP, Company)
+
+Each document group has a retrieval agent backed by Elasticsearch and LangChain.
 
 Role: Extract chunks directly from relevant sources.
 
-### 🌐 Web Search Agent (Tavily)Provides fallback answers via external search when internal data is lacking.
+### 🌐 Web Search Agent (Tavily)
+
+Provides fallback answers via external search when internal data is lacking.
 
 Role: Last-resort knowledge gatherer.
 
-### 📚 Summarizer AgentUses Azure OpenAI to synthesize a final response based on retrieved data.
+### 📚 Summarizer Agent
+
+Uses Azure OpenAI to synthesize a final response based on retrieved data.
 
 Role: Legal expert summarizer with citations.
 
-### 💬 Memory AgentMaintains chat context using LangChain memory.
+### 💬 Memory Agent
+
+Maintains chat context using LangChain memory.
 
 Role: Chat continuity and personalization.
 
@@ -121,9 +131,7 @@ Use .env to configure OpenAI, Elasticsearch, Tavily keys.
 
 1. Clone & Setup
 
-git clone https://github.com/yourname/yourrepo.git
-cd yourrepo
-cp .env.example .env  # Fill in your API keys
+git clone https://github.com/adryanra97/data-protection-ai-assistant
 
 2. Run Locally
 
@@ -168,6 +176,28 @@ Content-Type: application/json
 }
 
 Returns a detailed, memory-aware, legally referenced answer.
+
+# 💡 Example Query
+User Input:
+
+Saya ingin mengetahui apa saja hak saya jika data saya digunakan untuk pemrosesan data dalam berbagai sumber hukum?
+What Happens Internally:
+
+🔎 Query Router Agent detects keywords like "hak", "pemrosesan data", "sumber hukum" → routes to gdpr, pdp, and company tools.
+
+📄 Retriever Agents fetch relevant sections from GDPR, UU PDP, and internal policies.
+
+🌐 Web Search Agent optionally supplements if documents lack certain details.
+
+📚 Summarizer Agent synthesizes a concise legal explanation with references.
+
+💬 Memory Agent links the query to previous conversation context if needed.
+
+🧠 Final Answer Agent reviews and finalizes a human-like, sourced response.
+
+Bot Output (Example):
+
+Berdasarkan GDPR dan UU PDP, Anda memiliki hak-hak seperti: hak untuk diberi tahu, hak akses, hak untuk memperbaiki data, hak untuk dihapuskan, dan hak untuk membatasi pemrosesan. Misalnya, Pasal 13 GDPR mengharuskan pengendali data memberi informasi pada saat data dikumpulkan. Dalam konteks kebijakan internal, hak Anda juga diatur dalam kebijakan privasi perusahaan. [Sumber: GDPR Art.13, UU PDP Pasal 6]
 
 # 👨‍⚖️ For LegalTech & Compliance Teams
 
