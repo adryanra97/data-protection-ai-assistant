@@ -1,20 +1,38 @@
-# Python 3.11 sebagai base image
+# Data Protection AI Assistant Docker Configuration
+# Author: Adryan R A
+
 FROM python:3.11-slim
 
-# # Set working directory
-# WORKDIR /app
+# Set working directory
+WORKDIR /app
 
-# Copy file requirements.txt
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    curl \
+    gcc \
+    g++ \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy requirements and install Python dependencies
 COPY requirements.txt .
-
-# Install dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy seluruh kode sumber ke dalam container
+# Copy application code
 COPY . .
 
-# Expose port untuk FastAPI
-EXPOSE 8000
+# Create necessary directories
+RUN mkdir -p logs data
 
-# Perintah untuk menjalankan aplikasi menggunakan uvicorn
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Set environment variables
+ENV PYTHONPATH=/app/src
+ENV PYTHONUNBUFFERED=1
+
+# Expose ports
+EXPOSE 8000 7860
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD curl -f http://localhost:8000/health || exit 1
+
+# Default command
+CMD ["python", "main.py", "--both"]

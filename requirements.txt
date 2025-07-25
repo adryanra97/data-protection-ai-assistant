@@ -1,14 +1,52 @@
-fastapi
-uvicorn
-langchain
-langchain-community
-langchain-core
-langchain-openai
-langchain-elasticsearch
-openai
-elasticsearch
-python-dotenv
-requests
-pydantic
-gradio
-tavily-python
+# Data Protection AI Assistant Dependencies
+# Author: Adryan R A
+
+# Core Framework
+fastapi>=0.104.0
+uvicorn[standard]>=0.24.0
+
+# LangChain and AI/ML
+langchain>=0.1.0
+langchain-community>=0.0.10
+langchain-core>=0.1.0
+langchain-openai>=0.0.5
+langchain-elasticsearch>=0.2.0
+openai>=1.0.0
+
+# Search and Database
+elasticsearch>=8.0.0
+
+# Configuration and Environment
+python-dotenv>=1.0.0
+pydantic>=2.0.0
+pydantic-settings>=2.0.0
+
+# HTTP and API
+requests>=2.31.0
+httpx>=0.25.0
+
+# User Interface
+gradio>=4.0.0
+
+# Web Search
+tavily-python>=0.3.0
+
+# Development and Testing
+pytest>=7.0.0
+pytest-asyncio>=0.21.0
+black>=23.0.0
+flake8>=6.0.0
+mypy>=1.0.0
+
+# Documentation
+mkdocs>=1.5.0
+mkdocs-material>=9.0.0
+
+# Monitoring and Logging
+structlog>=23.0.0
+
+# File Processing
+python-multipart>=0.0.6
+
+# Async support
+asyncio-throttle>=1.0.0

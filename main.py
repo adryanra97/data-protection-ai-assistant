@@ -1,65 +1,179 @@
-from fastapi import FastAPI, UploadFile, File
-from pydantic import BaseModel
-from fastapi.responses import JSONResponse
-from fastapi.openapi.utils import get_openapi
+"""
+Data Protection AI Assistant - Main Application Entry Point
 
-from search_engine import SearchEngine
-from ingest import ingest_all
-from tools import get_tools
-from qa_engine import QAEngine
-from utils import split_doc
+This module serves as the main entry point for the Data Protection AI Assistant,
+providing options to run the API server, Gradio UI, or both.
 
-# --- Init Phase --- #
-app = FastAPI()
+Author: Adryan R A
+"""
 
-# Initialize Elasticsearch and document stores
-search = SearchEngine()
-stores = {
-    "gdpr": search.get_store("gdpr_docs"),
-    "pdp": search.get_store("uupdp_docs"),
-    "company": search.get_store("company_docs")
-}
+import argparse
+import asyncio
+import logging
+import sys
+from pathlib import Path
 
-# Ingest all available documents
-ingest_all(stores)
+# Add src to Python path
+sys.path.insert(0, str(Path(__file__).parent / "src"))
 
-# Set up tools and QA engine
-tools = get_tools(stores, search_cfg={"k": 3, "score_threshold": 0.7})
-qa = QAEngine(tools)
-
-# Temp storage for uploaded user content
-uploaded_context = {}
-
-# --- Request Models --- #
-class QueryRequest(BaseModel):
-    query: str
-    context: str | None = None
-
-# --- Routes --- #
-
-@app.post("/ask")
-def ask(query: QueryRequest):
-    context_text = query.context or uploaded_context.get("temp", "")
-    answer = qa.answer(query.query)
-    return {"answer": answer}
+from src.core.config import settings
+from src.utils.logging_config import setup_logging
 
 
-@app.post("/upload")
-def upload_doc(file: UploadFile = File(...)):
-    content = file.file.read().decode("utf-8")
-    chunks = split_doc(content)
-    joined = "\n\n".join([c.page_content for c in chunks])
-    uploaded_context["temp"] = joined
-    return {"status": "ok", "context": joined[:5000]}  # Optional: limit response size
+def run_api():
+    """Run the FastAPI server."""
+    try:
+        import uvicorn
+        from src.api.main import app
+        
+        logger.info("Starting Data Protection AI Assistant API...")
+        
+        uvicorn.run(
+            app,
+            host=settings.API_HOST,
+            port=settings.API_PORT,
+            reload=settings.DEBUG,
+            log_level=settings.LOG_LEVEL.lower(),
+            access_log=True
+        )
+        
+    except ImportError as e:
+        logger.error(f"Failed to import required modules: {e}")
+        logger.error("Please ensure all dependencies are installed: pip install -r requirements.txt")
+        sys.exit(1)
+    except Exception as e:
+        logger.error(f"Failed to start API server: {e}")
+        sys.exit(1)
 
 
-@app.post("/reset")
-def reset_chat():
-    qa.reset_memory()
-    uploaded_context.clear()
-    return {"status": "reset"}
+def run_ui():
+    """Run the Gradio web interface."""
+    try:
+        from src.ui.gradio_app import launch_interface
+        
+        logger.info("Starting Data Protection AI Assistant Web Interface...")
+        
+        launch_interface(
+            server_name="0.0.0.0",
+            server_port=7860,
+            share=False,
+            debug=settings.DEBUG
+        )
+        
+    except ImportError as e:
+        logger.error(f"Failed to import required modules: {e}")
+        logger.error("Please ensure all dependencies are installed: pip install -r requirements.txt")
+        sys.exit(1)
+    except Exception as e:
+        logger.error(f"Failed to start web interface: {e}")
+        sys.exit(1)
 
 
-@app.get("/openapi.json")
-def custom_openapi():
-    return get_openapi(title="Legal QA", version="1.0.0", routes=app.routes)
+async def run_both():
+    """Run both API and UI servers concurrently."""
+    import multiprocessing
+    
+    logger.info("Starting both API server and Web Interface...")
+    
+    # Start API server in a separate process
+    api_process = multiprocessing.Process(target=run_api)
+    api_process.start()
+    
+    # Wait a moment for API to start
+    await asyncio.sleep(3)
+    
+    try:
+        # Start UI (this will block)
+        run_ui()
+    finally:
+        # Cleanup API process
+        if api_process.is_alive():
+            api_process.terminate()
+            api_process.join()
+
+
+def main():
+    """Main function with command line argument parsing."""
+    parser = argparse.ArgumentParser(
+        description="Data Protection AI Assistant - Legal Question Answering System",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  python main.py --api          # Run only the API server
+  python main.py --ui           # Run only the web interface  
+  python main.py --both         # Run both API and UI
+  python main.py --api --debug  # Run API with debug mode
+        """
+    )
+    
+    parser.add_argument(
+        "--api",
+        action="store_true",
+        help="Run the FastAPI server"
+    )
+    
+    parser.add_argument(
+        "--ui",
+        action="store_true", 
+        help="Run the Gradio web interface"
+    )
+    
+    parser.add_argument(
+        "--both",
+        action="store_true",
+        help="Run both API server and web interface"
+    )
+    
+    parser.add_argument(
+        "--debug",
+        action="store_true",
+        help="Enable debug mode"
+    )
+    
+    parser.add_argument(
+        "--log-file",
+        type=str,
+        help="Path to log file (default: logs to console only)"
+    )
+    
+    args = parser.parse_args()
+    
+    # Set debug mode if specified
+    if args.debug:
+        import os
+        os.environ["DEBUG"] = "true"
+        os.environ["LOG_LEVEL"] = "DEBUG"
+    
+    # Setup logging
+    setup_logging(args.log_file)
+    global logger
+    logger = logging.getLogger(__name__)
+    
+    logger.info("=" * 60)
+    logger.info("Data Protection AI Assistant")
+    logger.info("Author: Adryan R A")
+    logger.info("Version: 1.0.0")
+    logger.info("=" * 60)
+    
+    # Check if no arguments provided
+    if not (args.api or args.ui or args.both):
+        logger.info("No mode specified. Running both API and UI by default.")
+        args.both = True
+    
+    try:
+        if args.both:
+            asyncio.run(run_both())
+        elif args.api:
+            run_api()
+        elif args.ui:
+            run_ui()
+            
+    except KeyboardInterrupt:
+        logger.info("Application stopped by user")
+    except Exception as e:
+        logger.error(f"Application failed: {e}")
+        sys.exit(1)
+
+
+if __name__ == "__main__":
+    main()

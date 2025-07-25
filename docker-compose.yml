@@ -1,30 +1,84 @@
+# Docker Configuration for Data Protection AI Assistant
+# Author: Adryan R A
+
 version: '3.8'
 
 services:
+  # Elasticsearch service for document storage and search
   elasticsearch:
-    image: elasticsearch:8.12.0
-    container_name: elasticsearch
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.11.0
+    container_name: data-protection-elasticsearch
     environment:
       - discovery.type=single-node
       - xpack.security.enabled=false
-      - ES_JAVA_OPTS=-Xms512m -Xmx512m
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
     ports:
       - "9200:9200"
+      - "9300:9300"
+    volumes:
+      - elasticsearch_data:/usr/share/elasticsearch/data
     networks:
-      - legalnet
+      - data-protection-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:9200/_cluster/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
 
-  legal-qa-app:
-    build: .
-    container_name: legal-qa-app
+  # Main application API service
+  data-protection-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: data-protection-api
     ports:
       - "8000:8000"
-    env_file:
-      - .env
+    environment:
+      - ELASTICSEARCH_URL=http://elasticsearch:9200
+      - ELASTICSEARCH_API_KEY=${ELASTICSEARCH_API_KEY:-}
+      - OPENAI_CHAT_API_KEY=${OPENAI_CHAT_API_KEY}
+      - OPENAI_EMBED_API_KEY=${OPENAI_EMBED_API_KEY}
+      - CHAT_OPENAI_API_BASE=${CHAT_OPENAI_API_BASE}
+      - CHAT_MODEL_NAME=${CHAT_MODEL_NAME}
+      - EMBED_OPENAI_API_BASE=${EMBED_OPENAI_API_BASE}
+      - EMBED_MODEL_NAME=${EMBED_MODEL_NAME}
+      - TAVILY_API_URL=${TAVILY_API_URL}
+      - TAVILY_API_KEY=${TAVILY_API_KEY}
+      - DEBUG=${DEBUG:-false}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
     depends_on:
-      - elasticsearch
+      elasticsearch:
+        condition: service_healthy
+    volumes:
+      - ./data:/app/data:ro
+      - ./logs:/app/logs
     networks:
-      - legalnet
+      - data-protection-network
+    restart: unless-stopped
+    command: ["python", "main.py", "--api"]
+
+  # Web UI service
+  data-protection-ui:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: data-protection-ui
+    ports:
+      - "7860:7860"
+    environment:
+      - API_HOST=data-protection-api
+      - API_PORT=8000
+    depends_on:
+      - data-protection-api
+    networks:
+      - data-protection-network
+    restart: unless-stopped
+    command: ["python", "main.py", "--ui"]
+
+volumes:
+  elasticsearch_data:
+    driver: local
 
 networks:
-  legalnet:
+  data-protection-network:
     driver: bridge
