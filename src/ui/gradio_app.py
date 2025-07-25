@@ -136,12 +136,12 @@ def reset_conversation() -> Tuple[List, str]:
         response = requests.post(API_ENDPOINTS["reset"], timeout=10)
         
         if response.status_code == 200:
-            status_message = "✅ Conversation reset successfully!"
+            status_message = "Conversation reset successfully!"
         else:
-            status_message = f"⚠️ Reset request failed (Status: {response.status_code})"
+            status_message = f"Reset request failed (Status: {response.status_code})"
             
     except requests.exceptions.RequestException as e:
-        status_message = "⚠️ Could not reset conversation - API unavailable"
+        status_message = "Could not reset conversation - API unavailable"
         logger.error(f"Reset request failed: {e}")
     
     # Clear local state
@@ -162,7 +162,7 @@ def upload_document(file) -> str:
         str: Upload status message
     """
     if not file:
-        return "❌ No file selected"
+        return "No file selected"
     
     try:
         # Read file content
@@ -186,16 +186,16 @@ def upload_document(file) -> str:
             if preview:
                 app_state["context"] = preview
             
-            return f"✅ {message}\n📄 Created {chunks} chunks\n📝 Preview: {preview[:200]}..."
+            return f"{message}\n📄 Created {chunks} chunks\n📝 Preview: {preview[:200]}..."
         
         else:
             error_msg = f"Upload failed with status {response.status_code}"
             logger.error(f"Upload failed: {response.text}")
-            return f"❌ {error_msg}"
+            return f"{error_msg}"
     
     except Exception as e:
         logger.error(f"File upload error: {e}")
-        return f"❌ Upload error: {str(e)}"
+        return f"Upload error: {str(e)}"
 
 
 def load_conversation_history() -> List[List[str]]:
@@ -237,18 +237,18 @@ def create_interface() -> gr.Blocks:
     """
     # Application description
     description = """
-    # 🤖 Data Protection AI Assistant
+    # Data Protection AI Assistant
     
     An advanced AI-powered legal assistant specializing in data protection and privacy law. 
     Get expert guidance on **GDPR**, **Indonesia's UU PDP**, and **company data protection policies**.
     
-    ## 🚀 Features
+    ## Features
     - **Multi-Agent Intelligence**: Specialized agents for different legal domains
     - **Document Context**: Upload documents for personalized advice
     - **Real-time Search**: Access to current legal information
     - **Conversation Memory**: Maintains context throughout your session
     
-    ## 📋 How to Use
+    ## How to Use
     1. Type your legal question in the chat box below
     2. Optionally upload relevant documents for additional context
     3. Get comprehensive, source-backed legal guidance
@@ -287,7 +287,7 @@ def create_interface() -> gr.Blocks:
                 interactive=False,
                 scale=2
             )
-            refresh_btn = gr.Button("🔄 Refresh Status", scale=1)
+            refresh_btn = gr.Button("Refresh Status", scale=1)
         
         # Main chat interface
         with gr.Row():
@@ -309,11 +309,11 @@ def create_interface() -> gr.Blocks:
                         scale=4,
                         lines=2
                     )
-                    send_btn = gr.Button("📨 Send", scale=1, variant="primary")
+                    send_btn = gr.Button("Send", scale=1, variant="primary")
                 
                 # Control buttons
                 with gr.Row():
-                    clear_btn = gr.Button("🗑️ Reset Chat", variant="secondary")
+                    clear_btn = gr.Button("Reset Chat", variant="secondary")
                     status_display = gr.Textbox(
                         label="Status",
                         interactive=False,
@@ -322,7 +322,7 @@ def create_interface() -> gr.Blocks:
             
             # Sidebar for document upload and settings
             with gr.Column(scale=1):
-                gr.Markdown("### 📁 Document Upload")
+                gr.Markdown("### Document Upload")
                 gr.Markdown("Upload legal documents to provide additional context for your questions.")
                 
                 file_upload = gr.File(
@@ -337,7 +337,7 @@ def create_interface() -> gr.Blocks:
                     lines=3
                 )
                 
-                gr.Markdown("### ℹ️ Tips")
+                gr.Markdown("### Tips")
                 gr.Markdown("""
                 - Be specific in your questions
                 - Mention relevant jurisdictions (EU, Indonesia, etc.)
@@ -345,7 +345,7 @@ def create_interface() -> gr.Blocks:
                 - Use follow-up questions for clarification
                 """)
                 
-                gr.Markdown("### 🏷️ Example Questions")
+                gr.Markdown("### Example Questions")
                 gr.Markdown("""
                 - "What are the penalties for GDPR violations?"
                 - "How does UU PDP differ from GDPR?"
@@ -389,7 +389,7 @@ def create_interface() -> gr.Blocks:
         <small>
         **Data Protection AI Assistant v1.0.0** | 
         Built with LangChain, OpenAI, Elasticsearch & Gradio | 
-        ⚖️ For educational purposes - consult legal professionals for specific advice
+        For educational purposes - consult legal professionals for specific advice
         </small>
         </center>
         """)
