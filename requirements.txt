@@ -45,6 +45,12 @@ mkdocs-material>=9.0.0
 # Monitoring and Logging
 structlog>=23.0.0
 
+# Data Processing
+pandas>=2.0.0
+openpyxl>=3.1.0
+PyPDF2>=3.0.0
+PyPDF2>=3.0.0
+
 # File Processing
 python-multipart>=0.0.6
 

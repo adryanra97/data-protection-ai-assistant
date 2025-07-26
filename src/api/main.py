@@ -10,7 +10,7 @@ Author: Adryan R A
 import time
 import logging
 from datetime import datetime
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, UploadFile, File, HTTPException, status, Depends
@@ -21,10 +21,12 @@ from fastapi.openapi.utils import get_openapi
 from .models import (
     QueryRequest, QueryResponse, UploadResponse, ResetResponse,
     HealthCheckResponse, ConversationHistoryResponse, ErrorResponse,
-    SystemStatsResponse
+    SystemStatsResponse, DocumentUploadRequest, DocumentUploadResponse,
+    DocumentListResponse, DocumentStatusUpdateRequest, DocumentStatusUpdateResponse
 )
 from ..services.search_engine import SearchEngine
 from ..services.ingestion import DocumentIngestor
+from ..services.document_manager import DocumentManager
 from ..agents.tools import ToolManager
 from ..agents.qa_engine import QAEngine
 from ..core.config import settings
@@ -38,6 +40,7 @@ logger = logging.getLogger(__name__)
 # Global variables for dependency injection
 search_engine: SearchEngine = None
 document_ingestor: DocumentIngestor = None
+document_manager: DocumentManager = None
 tool_manager: ToolManager = None
 qa_engine: QAEngine = None
 app_start_time: float = None
@@ -53,7 +56,7 @@ async def lifespan(app: FastAPI):
     This function handles initialization of all services during startup
     and cleanup during shutdown.
     """
-    global search_engine, document_ingestor, tool_manager, qa_engine, app_start_time
+    global search_engine, document_ingestor, document_manager, tool_manager, qa_engine, app_start_time
     
     # Startup
     logger.info("Starting Data Protection AI Assistant API...")
@@ -75,6 +78,10 @@ async def lifespan(app: FastAPI):
         # Initialize document ingestor
         logger.info("Initializing document ingestor...")
         document_ingestor = DocumentIngestor(search_engine)
+        
+        # Initialize document manager
+        logger.info("Initializing document manager...")
+        document_manager = DocumentManager(search_engine)
         
         # Ingest documents
         logger.info("Ingesting documents...")
@@ -296,6 +303,176 @@ async def reset_conversation(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to reset conversation: {str(e)}"
+        )
+
+
+# Document Management Endpoints
+
+def get_document_manager() -> DocumentManager:
+    """Dependency to provide document manager instance."""
+    if document_manager is None:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Document Manager not initialized"
+        )
+    return document_manager
+
+
+@app.post("/documents/upload", response_model=DocumentUploadResponse)
+async def upload_document_new(
+    file: UploadFile = File(...),
+    title: Optional[str] = None,
+    description: Optional[str] = None,
+    category: str = "user_upload",
+    doc_manager: DocumentManager = Depends(get_document_manager)
+) -> DocumentUploadResponse:
+    """
+    Upload and process a document for the knowledge base.
+    
+    This endpoint allows users to upload documents (CSV, TXT, XLSX, PDF) that will be
+    automatically chunked and added to Elasticsearch for RAG queries.
+    
+    Args:
+        file (UploadFile): The document file to upload
+        title (Optional[str]): Custom title for the document
+        description (Optional[str]): Description of the document
+        category (str): Category for the document (default: "user_upload")
+        doc_manager (DocumentManager): Document manager dependency
+        
+    Returns:
+        DocumentUploadResponse: Upload status and document information
+        
+    Raises:
+        HTTPException: If file upload or processing fails
+    """
+    try:
+        logger.info(f"Processing uploaded document: {file.filename}")
+        
+        # Prepare upload request
+        upload_request = DocumentUploadRequest(
+            filename=file.filename,
+            title=title or file.filename,
+            description=description,
+            category=category
+        )
+        
+        # Read file content
+        content = await file.read()
+        
+        # Upload and process document
+        response = await doc_manager.upload_document(upload_request, content)
+        
+        logger.info(f"Document uploaded successfully: {response.document.id}")
+        return response
+        
+    except Exception as e:
+        logger.error(f"Error uploading document: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to upload document: {str(e)}"
+        )
+
+
+@app.get("/documents", response_model=DocumentListResponse)
+async def list_documents(
+    category: Optional[str] = None,
+    doc_manager: DocumentManager = Depends(get_document_manager)
+) -> DocumentListResponse:
+    """
+    List all documents in the knowledge base.
+    
+    Args:
+        category (Optional[str]): Filter documents by category
+        doc_manager (DocumentManager): Document manager dependency
+        
+    Returns:
+        DocumentListResponse: List of documents with their metadata
+    """
+    try:
+        response = await doc_manager.list_documents(category)
+        return response
+        
+    except Exception as e:
+        logger.error(f"Error listing documents: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to list documents: {str(e)}"
+        )
+
+
+@app.put("/documents/{document_id}/status", response_model=DocumentStatusUpdateResponse)
+async def update_document_status(
+    document_id: str,
+    request: DocumentStatusUpdateRequest,
+    doc_manager: DocumentManager = Depends(get_document_manager)
+) -> DocumentStatusUpdateResponse:
+    """
+    Update the activation status of a document.
+    
+    This endpoint allows users to activate or deactivate documents for RAG queries.
+    
+    Args:
+        document_id (str): The ID of the document to update
+        request (DocumentStatusUpdateRequest): Status update request
+        doc_manager (DocumentManager): Document manager dependency
+        
+    Returns:
+        DocumentStatusUpdateResponse: Updated document status
+        
+    Raises:
+        HTTPException: If document not found or update fails
+    """
+    try:
+        response = await doc_manager.update_document_status(document_id, request.is_active)
+        return response
+        
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(e)
+        )
+    except Exception as e:
+        logger.error(f"Error updating document status: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to update document status: {str(e)}"
+        )
+
+
+@app.delete("/documents/{document_id}")
+async def delete_document(
+    document_id: str,
+    doc_manager: DocumentManager = Depends(get_document_manager)
+) -> dict:
+    """
+    Delete a document from the knowledge base.
+    
+    This endpoint removes a document and all its chunks from Elasticsearch.
+    
+    Args:
+        document_id (str): The ID of the document to delete
+        doc_manager (DocumentManager): Document manager dependency
+        
+    Returns:
+        dict: Deletion confirmation
+        
+    Raises:
+        HTTPException: If document not found or deletion fails
+    """
+    try:
+        await doc_manager.delete_document(document_id)
+        return {"status": "success", "message": f"Document {document_id} deleted successfully"}
+        
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(e)
+        )
+    except Exception as e:
+        logger.error(f"Error deleting document: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to delete document: {str(e)}"
         )
 
 

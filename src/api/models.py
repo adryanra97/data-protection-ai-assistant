@@ -197,3 +197,140 @@ class SystemStatsResponse(BaseModel):
         None,
         description="Current memory usage statistics"
     )
+
+
+class DocumentUploadRequest(BaseModel):
+    """
+    Model for document upload requests.
+    
+    This model structures document upload parameters.
+    """
+    category: str = Field(
+        default="user_documents",
+        description="Category for the uploaded document"
+    )
+    activate: bool = Field(
+        default=True,
+        description="Whether to activate the document for RAG queries"
+    )
+
+
+class DocumentInfo(BaseModel):
+    """
+    Model for document information.
+    
+    This model represents a document stored in the system.
+    """
+    document_id: str = Field(
+        ...,
+        description="Unique identifier for the document"
+    )
+    filename: str = Field(
+        ...,
+        description="Original filename of the document"
+    )
+    category: str = Field(
+        ...,
+        description="Document category"
+    )
+    file_type: str = Field(
+        ...,
+        description="File type (csv, txt, xlsx, pdf)"
+    )
+    upload_date: str = Field(
+        ...,
+        description="ISO timestamp when document was uploaded"
+    )
+    chunks_count: int = Field(
+        ...,
+        ge=0,
+        description="Number of chunks created from the document"
+    )
+    is_active: bool = Field(
+        ...,
+        description="Whether the document is active for RAG queries"
+    )
+    file_size: int = Field(
+        ...,
+        ge=0,
+        description="File size in bytes"
+    )
+
+
+class DocumentUploadResponse(BaseModel):
+    """
+    Model for document upload responses.
+    
+    This model structures responses from document upload operations.
+    """
+    status: str = Field(
+        ...,
+        description="Status of the upload operation"
+    )
+    message: str = Field(
+        ...,
+        description="Descriptive message about the upload result"
+    )
+    document: Optional[DocumentInfo] = Field(
+        None,
+        description="Information about the uploaded document"
+    )
+    preview: Optional[str] = Field(
+        None,
+        max_length=500,
+        description="Preview of the uploaded content"
+    )
+
+
+class DocumentListResponse(BaseModel):
+    """
+    Model for document list responses.
+    
+    This model structures responses containing lists of documents.
+    """
+    documents: List[DocumentInfo] = Field(
+        ...,
+        description="List of documents in the system"
+    )
+    total_count: int = Field(
+        ...,
+        ge=0,
+        description="Total number of documents"
+    )
+    active_count: int = Field(
+        ...,
+        ge=0,
+        description="Number of active documents"
+    )
+
+
+class DocumentStatusUpdateRequest(BaseModel):
+    """
+    Model for document status update requests.
+    
+    This model structures requests to update document activation status.
+    """
+    is_active: bool = Field(
+        ...,
+        description="New activation status for the document"
+    )
+
+
+class DocumentStatusUpdateResponse(BaseModel):
+    """
+    Model for document status update responses.
+    
+    This model structures responses from document status updates.
+    """
+    status: str = Field(
+        ...,
+        description="Status of the update operation"
+    )
+    message: str = Field(
+        ...,
+        description="Descriptive message about the update result"
+    )
+    document: DocumentInfo = Field(
+        ...,
+        description="Updated document information"
+    )
